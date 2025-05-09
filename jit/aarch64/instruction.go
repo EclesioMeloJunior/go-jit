@@ -10,6 +10,7 @@ const (
 	Sf64 byte = 1
 
 	AddImm_OpCode               = 0b00100010
+	Adr_OpCode                  = 0b10000
 	BranchLink_OpCode           = 0b100101
 	BranchReg_OpCode            = 0b1101011000011111000000
 	BranchLinkReg_OpCode        = 0b1101011000111111000000
@@ -20,6 +21,11 @@ const (
 )
 
 type (
+	Adr struct {
+		Rd  Register
+		Imm Imm
+	}
+
 	AddImm struct {
 		Rd  Register
 		Rn  Register
@@ -56,6 +62,12 @@ type (
 		Imm   Imm
 	}
 
+	Strb struct {
+		Imm Imm
+		Rn  Register
+		Rt  Register
+	}
+
 	Ret struct {
 		Rn Register
 	}
@@ -65,6 +77,16 @@ func encodeInstruction(inst uint32) []byte {
 	encodedInst := make([]byte, 4)
 	binary.LittleEndian.PutUint32(encodedInst, inst)
 	return encodedInst
+}
+
+func (a *Adr) Encode() []byte {
+	inst := uint32(0)
+	inst |= (uint32(a.Imm&0b11) << 29)
+	inst |= (Adr_OpCode << 24)
+	inst |= (uint32(a.Imm&0b1111111111111111111) << 5)
+	inst |= (uint32(a.Rd & Register(Register5BitMask)))
+
+	return encodeInstruction(inst)
 }
 
 func (a *AddImm) Encode(sf byte) []byte {
@@ -164,5 +186,15 @@ func (r *Ret) Encode(_ byte) []byte {
 	inst |= (Ret_Opcode << 10)
 
 	inst |= uint32(r.Rn&Register(Register5BitMask)) << 5
+	return encodeInstruction(inst)
+}
+
+func (s *Strb) Encode(_ byte) []byte {
+	inst := uint32(0)
+	inst |= uint32(0xE4) << 22
+	inst |= uint32(s.Imm&0b111111111111) << 10
+	inst |= uint32(s.Rn&Register(Register5BitMask)) << 5
+	inst |= uint32(s.Rt & Register(Register5BitMask))
+
 	return encodeInstruction(inst)
 }
